@@ -38,8 +38,9 @@ jobs:
         with:
           token: ${{ secrets.CICD_cours }}
 
-
-
+      - name: Build JSDoc
+        run: npm run jsdoc
+        
       - name: Build application
         run: npm run build
 
