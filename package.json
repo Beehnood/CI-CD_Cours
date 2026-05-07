@@ -12,7 +12,8 @@
     "test": "node ./node_modules/vitest/vitest.mjs run",
     "coverage": "node ./node_modules/vitest/vitest.mjs run --coverage",
     "predeploy": "npm run build",
-    "deploy": "node ./node_modules/gh-pages/bin/gh-pages.js -d dist"
+    "deploy": "node ./node_modules/gh-pages/bin/gh-pages.js -d dist",
+    "jsdoc": "node ./node_modules/jsdoc/jsdoc.js -R ./README.md -c ./jsdoc.config.json"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.4",
@@ -32,6 +33,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "gh-pages": "^6.3.0",
     "globals": "^17.5.0",
+    "jsdoc": "^4.0.5",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.10",
