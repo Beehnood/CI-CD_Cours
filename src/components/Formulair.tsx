@@ -67,7 +67,7 @@ function Formulaire() {
 }
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
+    <div className="max-w-md mx-auto p-6 m-6 bg-gray-50 rounded-lg shadow-lg ">
       <h1 className="text-2xl font-bold text-center mb-6">
         Coordonnées
       </h1>
@@ -78,7 +78,7 @@ function Formulaire() {
         </p>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 m-6">
 
         {/* Prénom */}
         <div>
