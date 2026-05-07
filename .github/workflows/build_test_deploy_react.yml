@@ -33,6 +33,13 @@ jobs:
       - name: Run tests
         run: npm run coverage
 
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CICD_cours }}
+
+
+
       - name: Build application
         run: npm run build
 
@@ -63,7 +70,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
-        env:
-          CODECOV_TOKEN: ${{ secrets.CICD_cours }}
+     
