@@ -13,6 +13,7 @@ type TFormData = {
   email: string;
   city: string;
   postalCode: string;
+  phone: string,
 };
 
 function Formulaire() {
@@ -23,6 +24,7 @@ function Formulaire() {
     email: "",
     city: "",
     postalCode: "",
+    phone: "",
   });
 
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +62,15 @@ function Formulaire() {
     )
   ) {
     setError("Le code postal est invalide");
+    return;
+  }
+
+  if (
+    !isValidFrenchPostalCode(
+      formData.phone
+    )
+  ) {
+    setError("Le numero du téléphone est invalide");
     return;
   }
 
@@ -193,6 +204,24 @@ function Formulaire() {
               setFormData({
                 ...formData,
                 postalCode: e.target.value,
+              })
+            }
+            className="mt-1 block w-full rounded-md border p-2"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Numero de Telephone
+          </label>
+
+          <input
+            type="text"
+            value={formData.phone}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                phone: e.target.value,
               })
             }
             className="mt-1 block w-full rounded-md border p-2"

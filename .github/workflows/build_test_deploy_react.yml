@@ -46,6 +46,23 @@ jobs:
       - name: Build application
         run: npm run build
 
+      - name: Authenticate with npm
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
+      - name: build and publish package on NPM
+        run: |
+            git config --global user.email "behnoodpazhang67@gmail.com"
+
+              git config --global user.name "beehnood"
+              npm run build-npm-ci
+              npm version patch
+              npm publish
+              git add .
+              git commit -m “updated version”
+              git push
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Setup Pages
         if: github.event_name == 'push'
         uses: actions/configure-pages@v5
