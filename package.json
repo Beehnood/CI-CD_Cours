@@ -7,8 +7,7 @@
   "scripts": {
     "dev": "node ./node_modules/vite/bin/vite.js",
     "build": "node ./node_modules/typescript/bin/tsc -b && node ./node_modules/vite/bin/vite.js build --base=/CI-CD_Cours/",
-    "lint": "node ./node_modules/eslint/bin/eslint.js .",
-    "preview": "node ./node_modules/vite/bin/vite.js preview",
+    "build-npm-ci": "tsc -b && vite build --base=/CI-CD_Cours/",
     "test": "node ./node_modules/vitest/vitest.mjs run",
     "coverage": "node ./node_modules/vitest/vitest.mjs run --coverage",
     "predeploy": "npm run build",
@@ -18,10 +17,13 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.2.4",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5",
+    "react-dom": "^19.2.5", 
     "tailwindcss": "^4.2.4"
   },
   "devDependencies": {
+    "@babel/cli": "^7.29.7",
+    "@babel/core": "^7.29.7",
+    "@babel/plugin-transform-react-jsx": "^7.29.7",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
