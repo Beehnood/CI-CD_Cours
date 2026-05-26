@@ -1,6 +1,6 @@
 {
   "name": "cicd-form",
-  "private": true,
+  "private": false,
   "version": "0.0.1",
   "type": "module",
   "homepage": "https://beehnood.github.io/CI-CD_Cours/",
