@@ -1,6 +1,7 @@
 import {
   isAdult,
   isValidEmail,
+  isValidFrenchPhone,
   isValidFrenchPostalCode,
   isValidName,
 } from './validations';
@@ -59,6 +60,18 @@ describe('validations', () => {
 
     it('retourne false pour une personne mineure', () => {
       expect(isAdult('2020-01-01')).toBe(false);
+    });
+  });
+
+  describe('isValidFrenchPhone', () => {
+    it('retourne true pour un numero francais valide', () => {
+      expect(isValidFrenchPhone('0612345678')).toBe(true);
+      expect(isValidFrenchPhone('+33 6 12 34 56 78')).toBe(true);
+    });
+
+    it('retourne false pour un numero invalide', () => {
+      expect(isValidFrenchPhone('75001')).toBe(false);
+      expect(isValidFrenchPhone('0012345678')).toBe(false);
     });
   });
 });

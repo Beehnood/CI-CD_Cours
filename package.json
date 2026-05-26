@@ -1,7 +1,7 @@
 {
   "name": "cicd-form",
   "private": false,
-  "version": "0.0.1",
+  "version": "0.1.1",
   "type": "module",
   "homepage": "https://beehnood.github.io/CI-CD_Cours/",
   "scripts": {
@@ -9,6 +9,7 @@
     "build": "node ./node_modules/typescript/bin/tsc -b && node ./node_modules/vite/bin/vite.js build --base=/CI-CD_Cours/",
     "build-npm-ci": "tsc -b && vite build --base=/CI-CD_Cours/",
     "test": "node ./node_modules/vitest/vitest.mjs run",
+    "test:e2e": "node ./node_modules/@playwright/test/cli.js test",
     "coverage": "node ./node_modules/vitest/vitest.mjs run --coverage",
     "predeploy": "npm run build",
     "deploy": "node ./node_modules/gh-pages/bin/gh-pages.js -d dist",
@@ -25,6 +26,7 @@
     "@babel/core": "^7.29.7",
     "@babel/plugin-transform-react-jsx": "^7.29.7",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.60.0",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

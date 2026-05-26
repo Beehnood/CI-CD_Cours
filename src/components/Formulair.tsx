@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import {
   isAdult,
   isValidEmail,
+  isValidFrenchPhone,
   isValidFrenchPostalCode,
   isValidName,
 } from "../utils/validations"
@@ -66,7 +67,7 @@ function Formulaire() {
   }
 
   if (
-    !isValidFrenchPostalCode(
+    !isValidFrenchPhone(
       formData.phone
     )
   ) {

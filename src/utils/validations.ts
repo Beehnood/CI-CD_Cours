@@ -31,3 +31,11 @@ export function isValidFrenchPostalCode(
 ): boolean {
   return /^[0-9]{5}$/.test(postalCode);
 }
+
+export function isValidFrenchPhone(phone: string): boolean {
+  const normalizedPhone = phone.replace(/\s/g, '');
+
+  return /^(?:(?:\+33|0033)[1-9][0-9]{8}|0[1-9][0-9]{8})$/.test(
+    normalizedPhone
+  );
+}

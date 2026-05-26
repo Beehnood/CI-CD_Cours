@@ -46,6 +46,12 @@ jobs:
       - name: Build application
         run: npm run build
 
+      - name: Install Playwright browser
+        run: node ./node_modules/@playwright/test/cli.js install --with-deps chromium
+
+      - name: Run end-to-end tests
+        run: npm run test:e2e
+
       - name: Setup Pages
         if: github.event_name == 'push'
         uses: actions/configure-pages@v5
