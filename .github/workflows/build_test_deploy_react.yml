@@ -56,10 +56,11 @@ jobs:
               git config --global user.name "beehnood"
               npm run build-npm-ci
               npm version patch
-              npm publish
               git add .
               git commit -m “updated version”
+              npm publish
               git push
+
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
