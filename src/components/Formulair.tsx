@@ -78,7 +78,7 @@ function Formulaire() {
 }
 
   return (
-    <div className="max-w-md mx-auto p-6 m-6 bg-gray-50 rounded-lg shadow-lg ">
+    <div className="max-w-md mx-auto p-6 m-6 bg-blue-50 rounded-lg shadow-lg ">
       <h1 className="text-2xl font-bold text-center mb-6">
         Coordonnées
       </h1>
@@ -232,7 +232,7 @@ function Formulaire() {
         {/* Bouton */}
         <button
           type="submit"
-          className="w-full bg-green-700 text-white p-2 rounded-md hover:bg-blue-700"
+          className="w-full bg-green-700 text-white p-2 rounded-md hover:bg-violet-700"
         >
           Envoyer
         </button>
