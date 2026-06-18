@@ -2,6 +2,7 @@ import os
 import secrets
 import time
 from datetime import date
+from urllib.parse import unquote, urlparse
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,10 +10,46 @@ import mysql.connector
 from mysql.connector import Error
 from pydantic import BaseModel, EmailStr
 
-MYSQL_HOST = os.getenv("MYSQL_HOST", os.getenv("MYSQLHOST", "db"))
-MYSQL_USER = os.getenv("MYSQL_USER", os.getenv("MYSQLUSER", "root"))
-MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", os.getenv("MYSQLPASSWORD", "7654321"))
-MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", os.getenv("MYSQLDATABASE", "ynov_ci"))
+MYSQL_URL = os.getenv("MYSQL_URL", os.getenv("DATABASE_URL"))
+parsed_mysql_url = urlparse(MYSQL_URL) if MYSQL_URL else None
+
+MYSQL_HOST = os.getenv(
+    "MYSQL_HOST",
+    os.getenv(
+        "MYSQLHOST",
+        parsed_mysql_url.hostname if parsed_mysql_url else "db",
+    ),
+)
+MYSQL_PORT = int(
+    os.getenv(
+        "MYSQL_PORT",
+        os.getenv(
+            "MYSQLPORT",
+            str(parsed_mysql_url.port if parsed_mysql_url else 3306),
+        ),
+    )
+)
+MYSQL_USER = os.getenv(
+    "MYSQL_USER",
+    os.getenv(
+        "MYSQLUSER",
+        unquote(parsed_mysql_url.username or "") if parsed_mysql_url else "root",
+    ),
+)
+MYSQL_PASSWORD = os.getenv(
+    "MYSQL_PASSWORD",
+    os.getenv(
+        "MYSQLPASSWORD",
+        unquote(parsed_mysql_url.password or "") if parsed_mysql_url else "7654321",
+    ),
+)
+MYSQL_DATABASE = os.getenv(
+    "MYSQL_DATABASE",
+    os.getenv(
+        "MYSQLDATABASE",
+        parsed_mysql_url.path.lstrip("/") if parsed_mysql_url else "ynov_ci",
+    ),
+)
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "change-this-admin-token")
@@ -49,6 +86,7 @@ def connect_with_retry():
         try:
             connection = mysql.connector.connect(
                 host=MYSQL_HOST,
+                port=MYSQL_PORT,
                 user=MYSQL_USER,
                 password=MYSQL_PASSWORD,
                 database=MYSQL_DATABASE,
@@ -60,6 +98,55 @@ def connect_with_retry():
             time.sleep(3)
 
     raise RuntimeError("Impossible de se connecter a MySQL.")
+
+
+def initialize_database():
+    connection = connect_with_retry()
+    cursor = connection.cursor()
+
+    try:
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS utilisateur
+            (
+                id INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
+                nom VARCHAR(100) NOT NULL,
+                prenom VARCHAR(100) NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                date_naissance DATE NOT NULL,
+                pays VARCHAR(255) NOT NULL DEFAULT 'France',
+                ville VARCHAR(255) NOT NULL,
+                code_postal VARCHAR(5) NOT NULL,
+                telephone VARCHAR(20) NULL,
+                nombre_achat INT NOT NULL DEFAULT 0
+            )
+            """
+        )
+
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_schema = %s
+              AND table_name = 'utilisateur'
+              AND column_name = 'telephone'
+            """,
+            (MYSQL_DATABASE,),
+        )
+        if cursor.fetchone()[0] == 0:
+            cursor.execute(
+                """
+                ALTER TABLE utilisateur
+                ADD COLUMN telephone VARCHAR(20) NULL AFTER code_postal
+                """
+            )
+
+        connection.commit()
+        print("Schema MySQL initialise.")
+    finally:
+        cursor.close()
+        connection.close()
+
 
 app = FastAPI()
 
@@ -75,6 +162,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def startup():
+    try:
+        initialize_database()
+    except Exception as error:
+        print(f"Initialisation MySQL impossible: {error}")
 
 
 @app.get("/")
@@ -99,38 +194,50 @@ def health():
 
 @app.get("/users/count")
 def count_users():
-    connection = connect_with_retry()
-    cursor = connection.cursor()
+    try:
+        connection = connect_with_retry()
+        cursor = connection.cursor()
 
-    cursor.execute("SELECT COUNT(*) FROM utilisateur")
-    result = cursor.fetchone()
+        cursor.execute("SELECT COUNT(*) FROM utilisateur")
+        result = cursor.fetchone()
 
-    cursor.close()
-    connection.close()
+        cursor.close()
+        connection.close()
+    except Exception as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Base de donnees indisponible",
+        ) from error
 
     return {"nombre_utilisateurs": result[0]}
 
 
 @app.get("/users")
 def list_users():
-    connection = connect_with_retry()
-    cursor = connection.cursor(dictionary=True)
+    try:
+        connection = connect_with_retry()
+        cursor = connection.cursor(dictionary=True)
 
-    cursor.execute(
-        """
-        SELECT
-            id,
-            nom,
-            prenom,
-            ville
-        FROM utilisateur
-        ORDER BY id
-        """
-    )
-    users = cursor.fetchall()
+        cursor.execute(
+            """
+            SELECT
+                id,
+                nom,
+                prenom,
+                ville
+            FROM utilisateur
+            ORDER BY id
+            """
+        )
+        users = cursor.fetchall()
 
-    cursor.close()
-    connection.close()
+        cursor.close()
+        connection.close()
+    except Exception as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Impossible de lire les utilisateurs",
+        ) from error
 
     return {"utilisateurs": users}
 
