@@ -9,10 +9,10 @@ import mysql.connector
 from mysql.connector import Error
 from pydantic import BaseModel, EmailStr
 
-MYSQL_HOST = os.getenv("MYSQL_HOST", "db")
-MYSQL_USER = os.getenv("MYSQL_USER", "root")
-MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "7654321")
-MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", "ynov_ci")
+MYSQL_HOST = os.getenv("MYSQL_HOST", os.getenv("MYSQLHOST", "db"))
+MYSQL_USER = os.getenv("MYSQL_USER", os.getenv("MYSQLUSER", "root"))
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", os.getenv("MYSQLPASSWORD", "7654321"))
+MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", os.getenv("MYSQLDATABASE", "ynov_ci"))
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "change-this-admin-token")

@@ -6,3 +6,5 @@ ALTER TABLE utilisateur
 UPDATE utilisateur
 SET telephone = '0612345678'
 WHERE id = 1 AND telephone IS NULL;
+
+
