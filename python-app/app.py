@@ -55,6 +55,7 @@ MYSQL_DATABASE = os.getenv(
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "loise.fenoll@ynov.com")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "PvdrTAzTeR247sDnAZBr")
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "change-this-admin-token")
+APP_VERSION = os.getenv("RAILWAY_GIT_COMMIT_SHA", "local")[:8]
 
 
 class UserCreate(BaseModel):
@@ -72,6 +73,38 @@ class UserCreate(BaseModel):
 class AdminLogin(BaseModel):
     username: str
     password: str
+
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/")
+def home():
+    return {
+        "message": "API python fonctionne",
+        "version": APP_VERSION,
+    }
+
+
+@app.get("/health")
+def health():
+    return {
+        "status": "healthy",
+        "version": APP_VERSION,
+    }
 
 
 def hash_password(password: str):
@@ -181,21 +214,6 @@ def initialize_database_in_background():
         print(f"Initialisation MySQL impossible: {error}")
 
 
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:4173",
-        "http://127.0.0.1:4173",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 
 @app.on_event("startup")
 def startup():
@@ -205,14 +223,7 @@ def startup():
     ).start()
 
 
-@app.get("/")
-def home():
-    return {"message": "API python fonctionne"}
 
-
-@app.get("/health")
-def health():
-    return {"status": "healthy"}
 
 
 @app.get("/ready")
