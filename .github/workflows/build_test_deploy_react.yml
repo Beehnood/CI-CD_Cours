@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 concurrency:
   group: pages
@@ -66,6 +67,9 @@ jobs:
       - name: Run end-to-end tests
         run: npm run test:e2e
 
+      - name: Validate Docker Compose file
+        run: docker compose config
+
       - name: Setup Pages
         if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v6
@@ -75,6 +79,51 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           path: dist
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: build_test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare image names
+        id: images
+        run: |
+          IMAGE_PREFIX=$(echo "ghcr.io/${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+          echo "db=${IMAGE_PREFIX}/mysql" >> "$GITHUB_OUTPUT"
+          echo "api=${IMAGE_PREFIX}/python-api" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish MySQL image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: DokerFiles/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ steps.images.outputs.db }}:latest
+            ${{ steps.images.outputs.db }}:${{ github.sha }}
+
+      - name: Build and publish Python API image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./python-app
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ steps.images.outputs.api }}:latest
+            ${{ steps.images.outputs.api }}:${{ github.sha }}
 
   deploy:
     if: github.event_name != 'pull_request'
