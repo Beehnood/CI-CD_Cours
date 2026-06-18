@@ -5,8 +5,9 @@ services:
       dockerfile: DokerFiles/Dockerfile
     image: migration_mysql:latest
     restart: unless-stopped
-    env_file:
-      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-7654321}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ynov_ci}
     ports:
       - "3307:3306"
     volumes:
