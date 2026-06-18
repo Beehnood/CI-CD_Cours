@@ -1,5 +1,7 @@
+import hashlib
 import os
 import secrets
+import threading
 import time
 from datetime import date
 from urllib.parse import unquote, urlparse
@@ -50,8 +52,8 @@ MYSQL_DATABASE = os.getenv(
         parsed_mysql_url.path.lstrip("/") if parsed_mysql_url else "ynov_ci",
     ),
 )
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "loise.fenoll@ynov.com")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "PvdrTAzTeR247sDnAZBr")
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "change-this-admin-token")
 
 
@@ -70,6 +72,10 @@ class UserCreate(BaseModel):
 class AdminLogin(BaseModel):
     username: str
     password: str
+
+
+def hash_password(password: str):
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
 
 def require_admin(authorization: str | None = Header(default=None)):
@@ -141,11 +147,38 @@ def initialize_database():
                 """
             )
 
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS administrateur
+            (
+                id INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
+                email VARCHAR(255) NOT NULL UNIQUE,
+                password_hash CHAR(64) NOT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        cursor.execute(
+            """
+            INSERT INTO administrateur (email, password_hash)
+            VALUES (%s, %s)
+            ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash)
+            """,
+            (ADMIN_USERNAME, hash_password(ADMIN_PASSWORD)),
+        )
+
         connection.commit()
         print("Schema MySQL initialise.")
     finally:
         cursor.close()
         connection.close()
+
+
+def initialize_database_in_background():
+    try:
+        initialize_database()
+    except Exception as error:
+        print(f"Initialisation MySQL impossible: {error}")
 
 
 app = FastAPI()
@@ -166,10 +199,10 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup():
-    try:
-        initialize_database()
-    except Exception as error:
-        print(f"Initialisation MySQL impossible: {error}")
+    threading.Thread(
+        target=initialize_database_in_background,
+        daemon=True,
+    ).start()
 
 
 @app.get("/")
@@ -307,16 +340,31 @@ def create_user(user: UserCreate):
 
 @app.post("/admin/login")
 def admin_login(credentials: AdminLogin):
-    username_matches = secrets.compare_digest(
-        credentials.username,
-        ADMIN_USERNAME,
-    )
-    password_matches = secrets.compare_digest(
-        credentials.password,
-        ADMIN_PASSWORD,
-    )
+    try:
+        connection = connect_with_retry()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute(
+            """
+            SELECT email, password_hash
+            FROM administrateur
+            WHERE email = %s
+            """,
+            (credentials.username,),
+        )
+        admin = cursor.fetchone()
+        cursor.close()
+        connection.close()
+    except Exception as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Base de donnees indisponible",
+        ) from error
 
-    if not username_matches or not password_matches:
+    password_hash = hash_password(credentials.password)
+    if admin is None or not secrets.compare_digest(
+        password_hash,
+        admin["password_hash"],
+    ):
         raise HTTPException(status_code=401, detail="Identifiants invalides")
 
     return {"token": ADMIN_TOKEN}

@@ -40,8 +40,8 @@ services:
       MYSQL_USER: root
       MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-7654321}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-ynov_ci}
-      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-loise.fenoll@ynov.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-PvdrTAzTeR247sDnAZBr}
       ADMIN_TOKEN: ${ADMIN_TOKEN:-change-this-admin-token}
     ports:
       - "8000:8000"

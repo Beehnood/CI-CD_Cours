@@ -69,19 +69,19 @@ La liste publique affiche uniquement le prénom, le nom et la ville. Les informa
 Identifiants de développement:
 
 ```text
-Utilisateur: admin
-Mot de passe: admin123
+Utilisateur: loise.fenoll@ynov.com
+Mot de passe: PvdrTAzTeR247sDnAZBr
 ```
 
 Ils sont configurables dans `.env`:
 
 ```env
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
+ADMIN_USERNAME=loise.fenoll@ynov.com
+ADMIN_PASSWORD=PvdrTAzTeR247sDnAZBr
 ADMIN_TOKEN=replace-with-a-long-random-token
 ```
 
-En production, remplacer obligatoirement ces trois valeurs.
+Au premier démarrage, l'API crée la table `administrateur` et ajoute ce compte à partir des variables d'environnement. Le mot de passe est enregistré sous forme de hash dans MySQL.
 
 Endpoints protégés:
 

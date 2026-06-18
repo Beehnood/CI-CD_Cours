@@ -28,7 +28,10 @@ async function mockUsersApi(page: Page, users: MockUser[] = []) {
 
   await page.route('**/admin/login', async (route) => {
     const body = route.request().postDataJSON();
-    if (body.username !== 'admin' || body.password !== 'admin123') {
+    if (
+      body.username !== 'loise.fenoll@ynov.com' ||
+      body.password !== 'PvdrTAzTeR247sDnAZBr'
+    ) {
       await route.fulfill({
         status: 401,
         contentType: 'application/json',
@@ -202,8 +205,8 @@ test("un admin consulte les informations privées et supprime un utilisateur", a
     .getByRole('button', { name: 'Utilisateurs', exact: true })
     .click();
 
-  await page.getByLabel('Compte admin').fill('admin');
-  await page.getByLabel('Mot de passe').fill('admin123');
+  await page.getByLabel('Compte admin').fill('loise.fenoll@ynov.com');
+  await page.getByLabel('Mot de passe').fill('PvdrTAzTeR247sDnAZBr');
   await page.getByRole('button', { name: 'Connexion admin' }).click();
 
   await expect(page.getByText('Session administrateur active')).toBeVisible();
