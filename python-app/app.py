@@ -212,8 +212,20 @@ def home():
 
 @app.get("/health")
 def health():
+    return {"status": "healthy"}
+
+
+@app.get("/ready")
+def readiness():
     try:
-        connection = connect_with_retry()
+        connection = mysql.connector.connect(
+            host=MYSQL_HOST,
+            port=MYSQL_PORT,
+            user=MYSQL_USER,
+            password=MYSQL_PASSWORD,
+            database=MYSQL_DATABASE,
+            connection_timeout=5,
+        )
         cursor = connection.cursor()
         cursor.execute("SELECT 1")
         cursor.fetchone()
@@ -222,7 +234,7 @@ def health():
     except Exception as error:
         raise HTTPException(status_code=503, detail="MySQL indisponible") from error
 
-    return {"status": "healthy"}
+    return {"status": "ready"}
 
 
 @app.get("/users/count")
