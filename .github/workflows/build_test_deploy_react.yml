@@ -18,6 +18,8 @@ concurrency:
 jobs:
   build_test:
     runs-on: ubuntu-latest
+    env:
+      VITE_API_URL: https://ci-cdcours-production.up.railway.app
 
     steps:
       - name: Checkout repository
@@ -68,7 +70,9 @@ jobs:
         run: npm run test:e2e
 
       - name: Verify GitHub Pages asset paths
-        run: grep -q '/CI-CD_Cours/assets/' dist/index.html
+        run: |
+          grep -q '/CI-CD_Cours/assets/' dist/index.html
+          grep -R -q 'ci-cdcours-production.up.railway.app' dist/assets
 
       - name: Validate Docker Compose file
         run: docker compose config
