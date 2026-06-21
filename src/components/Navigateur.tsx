@@ -1,3 +1,5 @@
+
+
 export type NavigationPage = "home" | "users" | "form";
 
 type NavigateurProps = {
@@ -13,6 +15,7 @@ function Navigateur({ currentPage, onNavigate }: NavigateurProps) {
         : "text-slate-600 hover:text-slate-950"
     }`;
 
+   
   return (
     <nav
       className="border-b border-slate-200 bg-white"

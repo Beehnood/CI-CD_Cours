@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import Formulair, { type TFormData } from "./components/Formulair";
-import ListUZz, {
-  type PrivateUser,
-  type User,
-} from "./components/ListUZz";
+import ListUZz, { type User } from "./components/ListUZz";
 import Navigateur, {
   type NavigationPage,
 } from "./components/Navigateur";
-
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+import {
+  createUser as createUserRequest,
+  fetchPrivateUser,
+  fetchUsers,
+  loginAdmin as loginAdminRequest,
+  removeUser,
+} from "./api/users";
 
 function App() {
   const [currentPage, setCurrentPage] =
@@ -19,37 +20,22 @@ function App() {
   const [adminToken, setAdminToken] = useState<string | null>(null);
 
   useEffect(() => {
-    axios
-      .get<{ utilisateurs: User[] }>(`${API_URL}/users`)
-      .then((response) => {
-        setUsers(response.data.utilisateurs);
+    fetchUsers()
+      .then((loadedUsers) => {
+        setUsers(loadedUsers);
         setApiError(null);
       })
       .catch(() => {
-        setApiError("API Python indisponible");
+        setApiError(
+          "API Python indisponible. Vérifiez que FastAPI et MySQL sont démarrés.",
+        );
       });
   }, []);
 
   async function createUser(formData: TFormData) {
-    const response = await axios.post<{ utilisateur: User }>(
-      `${API_URL}/users`,
-      {
-        nom: formData.lastName,
-        prenom: formData.firstName,
-        email: formData.email,
-        date_naissance: formData.birthDate,
-        pays: "France",
-        ville: formData.city,
-        code_postal: formData.postalCode,
-        telephone: formData.phone,
-        nombre_achat: 0,
-      },
-    );
+    const createdUser = await createUserRequest(formData);
 
-    setUsers((currentUsers) => [
-      ...currentUsers,
-      response.data.utilisateur,
-    ]);
+    setUsers((currentUsers) => [...currentUsers, createdUser]);
     setApiError(null);
     setCurrentPage("users");
   }
@@ -58,31 +44,21 @@ function App() {
     username: string;
     password: string;
   }) {
-    const response = await axios.post<{ token: string }>(
-      `${API_URL}/admin/login`,
-      credentials,
-    );
-    setAdminToken(response.data.token);
+    setAdminToken(await loginAdminRequest(credentials));
   }
 
   async function getPrivateUser(userId: number) {
-    const response = await axios.get<{ utilisateur: PrivateUser }>(
-      `${API_URL}/admin/users/${userId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${adminToken}`,
-        },
-      },
-    );
-    return response.data.utilisateur;
+    if (!adminToken) {
+      throw new Error("Session administrateur absente");
+    }
+    return fetchPrivateUser(userId, adminToken);
   }
 
   async function deleteUser(userId: number) {
-    await axios.delete(`${API_URL}/admin/users/${userId}`, {
-      headers: {
-        Authorization: `Bearer ${adminToken}`,
-      },
-    });
+    if (!adminToken) {
+      throw new Error("Session administrateur absente");
+    }
+    await removeUser(userId, adminToken);
     setUsers((currentUsers) =>
       currentUsers.filter((user) => user.id !== userId),
     );
