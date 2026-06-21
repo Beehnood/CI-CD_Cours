@@ -1,5 +1,3 @@
-USE ynov_ci;
-
 INSERT INTO utilisateur
 (id, nom, prenom, email, date_naissance, pays, ville, code_postal, nombre_achat)
 VALUES

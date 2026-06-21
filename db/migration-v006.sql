@@ -1,5 +1,3 @@
-USE ynov_ci;
-
 CREATE TABLE IF NOT EXISTS administrateur
 (
     id INT PRIMARY KEY NOT NULL AUTO_INCREMENT,

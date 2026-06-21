@@ -1,7 +1,6 @@
 import hashlib
 import os
 import secrets
-import threading
 import time
 from datetime import date
 from urllib.parse import unquote, urlparse
@@ -130,6 +129,7 @@ def connect_with_retry():
                 user=MYSQL_USER,
                 password=MYSQL_PASSWORD,
                 database=MYSQL_DATABASE,
+                connection_timeout=5,
             )
             print("Connexion MySQL reussie.")
             return connection
@@ -140,58 +140,12 @@ def connect_with_retry():
     raise RuntimeError("Impossible de se connecter a MySQL.")
 
 
-def initialize_database():
+def initialize_admin():
+    """Ajoute ou met à jour le compte admin dans un schéma déjà migré."""
     connection = connect_with_retry()
     cursor = connection.cursor()
 
     try:
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS utilisateur
-            (
-                id INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
-                nom VARCHAR(100) NOT NULL,
-                prenom VARCHAR(100) NOT NULL,
-                email VARCHAR(255) NOT NULL,
-                date_naissance DATE NOT NULL,
-                pays VARCHAR(255) NOT NULL DEFAULT 'France',
-                ville VARCHAR(255) NOT NULL,
-                code_postal VARCHAR(5) NOT NULL,
-                telephone VARCHAR(20) NULL,
-                nombre_achat INT NOT NULL DEFAULT 0
-            )
-            """
-        )
-
-        cursor.execute(
-            """
-            SELECT COUNT(*)
-            FROM information_schema.columns
-            WHERE table_schema = %s
-              AND table_name = 'utilisateur'
-              AND column_name = 'telephone'
-            """,
-            (MYSQL_DATABASE,),
-        )
-        if cursor.fetchone()[0] == 0:
-            cursor.execute(
-                """
-                ALTER TABLE utilisateur
-                ADD COLUMN telephone VARCHAR(20) NULL AFTER code_postal
-                """
-            )
-
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS administrateur
-            (
-                id INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
-                email VARCHAR(255) NOT NULL UNIQUE,
-                password_hash CHAR(64) NOT NULL,
-                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
         cursor.execute(
             """
             INSERT INTO administrateur (email, password_hash)
@@ -202,49 +156,56 @@ def initialize_database():
         )
 
         connection.commit()
-        print("Schema MySQL initialise.")
+        print("Compte administrateur initialise.")
     finally:
         cursor.close()
         connection.close()
 
 
-def initialize_database_in_background():
-    try:
-        initialize_database()
-    except Exception as error:
-        print(f"Initialisation MySQL impossible: {error}")
-
-
-
 @app.on_event("startup")
 def startup():
-    threading.Thread(
-        target=initialize_database_in_background,
-        daemon=True,
-    ).start()
-
-
-
+    try:
+        initialize_admin()
+    except Exception as error:
+        print(
+            "Initialisation du compte admin impossible. "
+            f"Vérifiez que les migrations MySQL sont appliquées : {error}"
+        )
 
 
 @app.get("/ready")
 def readiness():
+    connection = None
+    cursor = None
+
     try:
-        connection = mysql.connector.connect(
-            host=MYSQL_HOST,
-            port=MYSQL_PORT,
-            user=MYSQL_USER,
-            password=MYSQL_PASSWORD,
-            database=MYSQL_DATABASE,
-            connection_timeout=5,
-        )
+        connection = connect_with_retry()
         cursor = connection.cursor()
-        cursor.execute("SELECT 1")
-        cursor.fetchone()
-        cursor.close()
-        connection.close()
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM information_schema.tables
+            WHERE table_schema = %s
+              AND table_name IN ('utilisateur', 'administrateur')
+            """,
+            (MYSQL_DATABASE,),
+        )
+        table_count = cursor.fetchone()[0]
+        if table_count != 2:
+            raise RuntimeError(
+                "Les migrations MySQL ne sont pas appliquées "
+                "(tables utilisateur et administrateur attendues)."
+            )
     except Exception as error:
-        raise HTTPException(status_code=503, detail="MySQL indisponible") from error
+        raise HTTPException(
+            status_code=503,
+            detail="MySQL indisponible ou schéma non migré",
+        ) from error
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if connection is not None and connection.is_connected():
+            connection.close()
 
     return {"status": "ready"}
 

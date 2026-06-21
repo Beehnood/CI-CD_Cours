@@ -1,4 +1,2 @@
-USE ynov_ci;
-
 ALTER TABLE utilisateur
     MODIFY id INT NOT NULL AUTO_INCREMENT;

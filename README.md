@@ -81,7 +81,9 @@ ADMIN_PASSWORD=PvdrTAzTeR247sDnAZBr
 ADMIN_TOKEN=replace-with-a-long-random-token
 ```
 
-Au premier démarrage, l'API crée la table `administrateur` et ajoute ce compte à partir des variables d'environnement. Le mot de passe est enregistré sous forme de hash dans MySQL.
+La table `administrateur` est créée par les migrations SQL. Au démarrage,
+l'API ajoute ou met à jour le compte à partir des variables d'environnement.
+Le mot de passe est enregistré sous forme de hash dans MySQL.
 
 Endpoints protégés:
 

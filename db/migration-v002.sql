@@ -1,6 +1,4 @@
 
-USE ynov_ci;
-
 CREATE TABLE IF NOT EXISTS utilisateur
 (
     id INT PRIMARY KEY NOT NULL,
