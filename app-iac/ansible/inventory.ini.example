@@ -1,0 +1,2 @@
+[app]
+app-server ansible_host=IP_PUBLIQUE_APP ansible_user=ubuntu ansible_ssh_private_key_file=/path/to/app_key.pem

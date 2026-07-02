@@ -1,0 +1,97 @@
+---
+- name: Configure secure Docker registry
+  hosts: registry
+  become: true
+  vars:
+    registry_root: /opt/secure-registry
+    registry_title: AWS Student Registry
+    registry_host: "{{ ansible_host }}"
+    registry_username: "{{ lookup('env', 'REGISTRY_USERNAME') }}"
+    registry_password: "{{ lookup('env', 'REGISTRY_PASSWORD') }}"
+  tasks:
+    - name: Install Docker and required packages
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - docker.io
+          - docker-compose-v2
+          - apache2-utils
+          - openssl
+          - python3-docker
+        state: present
+        update_cache: true
+
+    - name: Enable Docker service
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Create registry directories
+      ansible.builtin.file:
+        path: "{{ registry_root }}/{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - auth
+        - conf
+        - data
+        - ssl
+
+    - name: Create htpasswd file
+      ansible.builtin.command:
+        cmd: "htpasswd -Bbc {{ registry_root }}/auth/registry.password {{ registry_username }} {{ registry_password }}"
+      no_log: true
+      changed_when: true
+
+    - name: Generate OpenSSL SAN config
+      ansible.builtin.copy:
+        dest: "{{ registry_root }}/ssl/openssl-san.cnf"
+        mode: "0644"
+        content: |
+          [req]
+          default_bits = 4096
+          prompt = no
+          default_md = sha256
+          x509_extensions = v3_req
+          distinguished_name = dn
+
+          [dn]
+          CN = {{ registry_host }}
+
+          [v3_req]
+          subjectAltName = @alt_names
+
+          [alt_names]
+          IP.1 = {{ registry_host }}
+
+    - name: Generate self-signed certificate for HTTPS registry
+      ansible.builtin.command:
+        cmd: >
+          openssl req -x509 -nodes -days 3650 -newkey rsa:4096
+          -keyout {{ registry_root }}/ssl/registry.key
+          -out {{ registry_root }}/ssl/registry.crt
+          -config {{ registry_root }}/ssl/openssl-san.cnf
+      args:
+        creates: "{{ registry_root }}/ssl/registry.crt"
+
+    - name: Deploy Nginx registry proxy config
+      ansible.builtin.template:
+        src: registry.conf.j2
+        dest: "{{ registry_root }}/conf/registry.conf"
+        mode: "0644"
+
+    - name: Deploy registry compose file
+      ansible.builtin.template:
+        src: docker-compose.yml.j2
+        dest: "{{ registry_root }}/docker-compose.yml"
+        mode: "0644"
+
+    - name: Start secure registry stack
+      community.docker.docker_compose_v2:
+        project_src: "{{ registry_root }}"
+        state: present
+        pull: always

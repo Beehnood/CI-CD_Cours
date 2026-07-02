@@ -1,0 +1,85 @@
+---
+- name: Configure application stack from private registry
+  hosts: app
+  become: true
+  vars:
+    app_root: /opt/registry-app
+    registry_username: "{{ lookup('env', 'REGISTRY_USERNAME') }}"
+    registry_password: "{{ lookup('env', 'REGISTRY_PASSWORD') }}"
+    db_name: "{{ lookup('env', 'DB_NAME') }}"
+    db_password: "{{ lookup('env', 'DB_PASSWORD') }}"
+    admin_username: "{{ lookup('env', 'ADMIN_USERNAME') }}"
+    admin_password: "{{ lookup('env', 'ADMIN_PASSWORD') }}"
+    admin_token: "{{ lookup('env', 'ADMIN_TOKEN') }}"
+  tasks:
+    - name: Install Docker and required packages
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - docker.io
+          - docker-compose-v2
+          - python3-docker
+        state: present
+        update_cache: true
+
+    - name: Enable Docker service
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Create app directory
+      ansible.builtin.file:
+        path: "{{ app_root }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Trust private registry self-signed certificate
+      ansible.builtin.copy:
+        src: "{{ registry_ca_cert_path }}"
+        dest: "/usr/local/share/ca-certificates/private-registry.crt"
+        mode: "0644"
+
+    - name: Update system CA store
+      ansible.builtin.command: update-ca-certificates
+      changed_when: true
+
+    - name: Create Docker registry certificate directory
+      ansible.builtin.file:
+        path: "/etc/docker/certs.d/{{ registry_host }}"
+        state: directory
+        mode: "0755"
+
+    - name: Trust registry certificate for Docker daemon
+      ansible.builtin.copy:
+        src: "{{ registry_ca_cert_path }}"
+        dest: "/etc/docker/certs.d/{{ registry_host }}/ca.crt"
+        mode: "0644"
+
+    - name: Restart Docker after certificate installation
+      ansible.builtin.service:
+        name: docker
+        state: restarted
+
+    - name: Login to private registry
+      community.docker.docker_login:
+        registry_url: "https://{{ registry_host }}"
+        username: "{{ registry_username }}"
+        password: "{{ registry_password }}"
+      no_log: true
+
+    - name: Deploy application compose file
+      ansible.builtin.template:
+        src: docker-compose.yml.j2
+        dest: "{{ app_root }}/docker-compose.yml"
+        mode: "0644"
+      no_log: true
+
+    - name: Start application stack
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_root }}"
+        state: present
+        pull: always

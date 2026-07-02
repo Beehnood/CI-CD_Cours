@@ -1,0 +1,2 @@
+[registry]
+registry-server ansible_host=IP_PUBLIQUE_REGISTRY ansible_user=ubuntu ansible_ssh_private_key_file=/path/to/registry_key.pem

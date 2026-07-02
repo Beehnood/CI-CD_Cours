@@ -1,0 +1,5 @@
+aws_region       = "eu-west-3"
+project_name     = "registry-app"
+instance_type    = "t2.micro"
+allowed_ssh_cidr = "0.0.0.0/0"
+allowed_app_cidr = "0.0.0.0/0"

@@ -1,0 +1,69 @@
+name: Build and push images to private registry
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
+  IMAGE_TAG: ${{ github.sha }}
+  FRONTEND_IMAGE: form-frontend
+  BACKEND_IMAGE: form-backend
+  DATABASE_IMAGE: form-database
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure Docker for private registry
+        run: |
+          echo "{\"insecure-registries\":[\"${REGISTRY_URL}\"]}" | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
+
+      - name: Validate frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm test -- --run
+          npm run build
+
+      - name: Validate backend syntax
+        working-directory: backend
+        run: |
+          python -m py_compile app.py
+
+      - name: Login to private registry
+        env:
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+        run: |
+          echo "${REGISTRY_PASSWORD}" | docker login "${REGISTRY_URL}" --username "${REGISTRY_USERNAME}" --password-stdin
+
+      - name: Build images
+        run: |
+          docker build -t "${REGISTRY_URL}/${FRONTEND_IMAGE}:${IMAGE_TAG}" frontend
+          docker build -t "${REGISTRY_URL}/${BACKEND_IMAGE}:${IMAGE_TAG}" backend
+          docker build -t "${REGISTRY_URL}/${DATABASE_IMAGE}:${IMAGE_TAG}" database
+
+          docker tag "${REGISTRY_URL}/${FRONTEND_IMAGE}:${IMAGE_TAG}" "${REGISTRY_URL}/${FRONTEND_IMAGE}:latest"
+          docker tag "${REGISTRY_URL}/${BACKEND_IMAGE}:${IMAGE_TAG}" "${REGISTRY_URL}/${BACKEND_IMAGE}:latest"
+          docker tag "${REGISTRY_URL}/${DATABASE_IMAGE}:${IMAGE_TAG}" "${REGISTRY_URL}/${DATABASE_IMAGE}:latest"
+
+      - name: Push images
+        run: |
+          docker push "${REGISTRY_URL}/${FRONTEND_IMAGE}:${IMAGE_TAG}"
+          docker push "${REGISTRY_URL}/${BACKEND_IMAGE}:${IMAGE_TAG}"
+          docker push "${REGISTRY_URL}/${DATABASE_IMAGE}:${IMAGE_TAG}"
+
+          docker push "${REGISTRY_URL}/${FRONTEND_IMAGE}:latest"
+          docker push "${REGISTRY_URL}/${BACKEND_IMAGE}:latest"
+          docker push "${REGISTRY_URL}/${DATABASE_IMAGE}:latest"

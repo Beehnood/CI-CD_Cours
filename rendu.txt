@@ -1,0 +1,8 @@
+Repository GitHub :
+https://github.com/VOTRE-UTILISATEUR/VOTRE-REPOSITORY
+
+Adresse IP publique du projet applicatif :
+A renseigner apres execution du workflow deploy.yml
+
+Adresse IP publique du registry Docker :
+A renseigner apres execution du workflow deploy.yml

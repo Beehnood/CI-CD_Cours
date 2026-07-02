@@ -1,0 +1,32 @@
+# Secrets
+.env
+*.pem
+*.key
+auth/
+ssl/
+data/
+registry.password
+terraform.tfvars
+secrets.yml
+**/inventory.ini
+
+# Terraform
+.terraform/
+**/.terraform/
+*.tfstate
+*.tfstate.*
+tfplan
+.terraform.lock.hcl
+**/.terraform.lock.hcl
+
+# Python/Node/build
+node_modules/
+dist/
+build/
+__pycache__/
+coverage/
+playwright-report/
+test-results/
+
+# OS
+.DS_Store
