@@ -1,15 +1,13 @@
-name: Build and push images to private registry
+name: Deploy application to AWS
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 permissions:
   contents: read
 
 env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
   REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
   IMAGE_TAG: ${{ github.sha }}
   FRONTEND_IMAGE: form-frontend
@@ -17,7 +15,7 @@ env:
   DATABASE_IMAGE: form-database
 
 jobs:
-  build-and-push:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -48,7 +46,7 @@ jobs:
         run: |
           echo "${REGISTRY_PASSWORD}" | docker login "${REGISTRY_URL}" --username "${REGISTRY_USERNAME}" --password-stdin
 
-      - name: Build images
+      - name: Build application images
         run: |
           docker build -t "${REGISTRY_URL}/${FRONTEND_IMAGE}:${IMAGE_TAG}" frontend
           docker build -t "${REGISTRY_URL}/${BACKEND_IMAGE}:${IMAGE_TAG}" backend
@@ -58,7 +56,7 @@ jobs:
           docker tag "${REGISTRY_URL}/${BACKEND_IMAGE}:${IMAGE_TAG}" "${REGISTRY_URL}/${BACKEND_IMAGE}:latest"
           docker tag "${REGISTRY_URL}/${DATABASE_IMAGE}:${IMAGE_TAG}" "${REGISTRY_URL}/${DATABASE_IMAGE}:latest"
 
-      - name: Push images
+      - name: Push application images
         run: |
           docker push "${REGISTRY_URL}/${FRONTEND_IMAGE}:${IMAGE_TAG}"
           docker push "${REGISTRY_URL}/${BACKEND_IMAGE}:${IMAGE_TAG}"
@@ -67,3 +65,104 @@ jobs:
           docker push "${REGISTRY_URL}/${FRONTEND_IMAGE}:latest"
           docker push "${REGISTRY_URL}/${BACKEND_IMAGE}:latest"
           docker push "${REGISTRY_URL}/${DATABASE_IMAGE}:latest"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Provision application EC2
+        env:
+          TF_VAR_ALLOWED_SSH_CIDR: ${{ secrets.TF_VAR_ALLOWED_SSH_CIDR }}
+          TF_VAR_ALLOWED_APP_CIDR: ${{ secrets.TF_VAR_ALLOWED_APP_CIDR }}
+          TF_VAR_INSTANCE_TYPE: ${{ secrets.TF_VAR_INSTANCE_TYPE }}
+        run: |
+          terraform -chdir=app-iac/terraform init
+          terraform -chdir=app-iac/terraform apply -auto-approve \
+            -var "aws_region=${AWS_REGION}" \
+            -var "allowed_ssh_cidr=${TF_VAR_ALLOWED_SSH_CIDR:-0.0.0.0/0}" \
+            -var "allowed_app_cidr=${TF_VAR_ALLOWED_APP_CIDR:-0.0.0.0/0}" \
+            -var "instance_type=${TF_VAR_INSTANCE_TYPE:-t2.micro}"
+
+          terraform -chdir=app-iac/terraform output -raw app_private_key_pem > "$RUNNER_TEMP/app_key.pem"
+          chmod 600 "$RUNNER_TEMP/app_key.pem"
+
+          echo "APP_HOST=$(terraform -chdir=app-iac/terraform output -raw app_public_ip)" >> "$GITHUB_ENV"
+          echo "APP_SSH_USER=$(terraform -chdir=app-iac/terraform output -raw app_ssh_user)" >> "$GITHUB_ENV"
+
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible openssh-client
+          ansible-galaxy collection install -r app-iac/ansible/requirements.yml
+
+      - name: Generate Ansible inventory
+        run: |
+          printf '[app]\napp-server ansible_host=%s ansible_user=%s ansible_ssh_private_key_file=%s/app_key.pem ansible_ssh_common_args="-o StrictHostKeyChecking=no"\n' \
+            "${APP_HOST}" "${APP_SSH_USER}" "${RUNNER_TEMP}" > app-iac/ansible/inventory.ini
+
+      - name: Wait for SSH
+        run: |
+          for i in {1..30}; do
+            if ssh -i "$RUNNER_TEMP/app_key.pem" -o StrictHostKeyChecking=no -o ConnectTimeout=5 "${APP_SSH_USER}@${APP_HOST}" "echo SSH ready"; then
+              exit 0
+            fi
+            echo "Waiting for SSH..."
+            sleep 10
+          done
+
+          echo "SSH did not become ready in time."
+          exit 1
+
+      - name: Configure and deploy application stack
+        env:
+          ANSIBLE_CONFIG: app-iac/ansible/ansible.cfg
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: |
+          ansible-playbook -i app-iac/ansible/inventory.ini app-iac/ansible/deploy.yml \
+            --extra-vars "registry_host=${REGISTRY_URL}" \
+            --extra-vars "frontend_image=${FRONTEND_IMAGE}" \
+            --extra-vars "backend_image=${BACKEND_IMAGE}" \
+            --extra-vars "database_image=${DATABASE_IMAGE}" \
+            --extra-vars "image_tag=${IMAGE_TAG}"
+
+      - name: Validate deployment
+        run: |
+          for i in {1..30}; do
+            if curl -fsS "http://${APP_HOST}" >/dev/null && \
+               curl -fsS "http://${APP_HOST}:3000/health" >/dev/null && \
+               curl -fsS "http://${APP_HOST}:3000/ready" >/dev/null; then
+              echo "Frontend and backend are reachable."
+              exit 0
+            fi
+
+            echo "Waiting for application..."
+            sleep 10
+          done
+
+          echo "Deployment validation failed."
+          exit 1
+
+      - name: Deployment summary
+        run: |
+          {
+            echo "## Deployment outputs"
+            echo "- Application frontend: http://${APP_HOST}"
+            echo "- Backend health: http://${APP_HOST}:3000/health"
+            echo "- Backend ready: http://${APP_HOST}:3000/ready"
+            echo "- Registry Docker: https://${REGISTRY_URL}"
+            echo "- Image tag: ${IMAGE_TAG}"
+          } >> "$GITHUB_STEP_SUMMARY"

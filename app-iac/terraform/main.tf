@@ -46,14 +46,6 @@ resource "aws_security_group" "app" {
     cidr_blocks = [var.allowed_app_cidr]
   }
 
-  ingress {
-    description = "Adminer"
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "tcp"
-    cidr_blocks = [var.allowed_app_cidr]
-  }
-
   egress {
     from_port   = 0
     to_port     = 0

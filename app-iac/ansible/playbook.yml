@@ -1,3 +1,4 @@
+cat > app-iac/ansible/playbook.yml <<'EOF'
 ---
 - name: Configure application stack from private registry
   hosts: app
@@ -11,6 +12,7 @@
     admin_username: "{{ lookup('env', 'ADMIN_USERNAME') }}"
     admin_password: "{{ lookup('env', 'ADMIN_PASSWORD') }}"
     admin_token: "{{ lookup('env', 'ADMIN_TOKEN') }}"
+
   tasks:
     - name: Install Docker and required packages
       ansible.builtin.apt:
@@ -23,10 +25,19 @@
         state: present
         update_cache: true
 
-    - name: Enable Docker service
+    - name: Configure Docker daemon for private registry with self-signed certificate
+      ansible.builtin.copy:
+        dest: /etc/docker/daemon.json
+        mode: "0644"
+        content: |
+          {
+            "insecure-registries": ["{{ registry_host }}"]
+          }
+
+    - name: Enable and restart Docker service
       ansible.builtin.service:
         name: docker
-        state: started
+        state: restarted
         enabled: true
 
     - name: Create app directory
@@ -37,38 +48,12 @@
         group: root
         mode: "0755"
 
-    - name: Trust private registry self-signed certificate
-      ansible.builtin.copy:
-        src: "{{ registry_ca_cert_path }}"
-        dest: "/usr/local/share/ca-certificates/private-registry.crt"
-        mode: "0644"
-
-    - name: Update system CA store
-      ansible.builtin.command: update-ca-certificates
-      changed_when: true
-
-    - name: Create Docker registry certificate directory
-      ansible.builtin.file:
-        path: "/etc/docker/certs.d/{{ registry_host }}"
-        state: directory
-        mode: "0755"
-
-    - name: Trust registry certificate for Docker daemon
-      ansible.builtin.copy:
-        src: "{{ registry_ca_cert_path }}"
-        dest: "/etc/docker/certs.d/{{ registry_host }}/ca.crt"
-        mode: "0644"
-
-    - name: Restart Docker after certificate installation
-      ansible.builtin.service:
-        name: docker
-        state: restarted
-
     - name: Login to private registry
       community.docker.docker_login:
-        registry_url: "https://{{ registry_host }}"
+        registry_url: "{{ registry_host }}"
         username: "{{ registry_username }}"
         password: "{{ registry_password }}"
+        validate_certs: false
       no_log: true
 
     - name: Deploy application compose file
@@ -83,3 +68,4 @@
         project_src: "{{ app_root }}"
         state: present
         pull: always
+EOF
