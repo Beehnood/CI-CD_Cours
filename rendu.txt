@@ -1,8 +1,8 @@
 Repository GitHub :
-https://github.com/VOTRE-UTILISATEUR/VOTRE-REPOSITORY
+https://github.com/Beehnood/CI-CD_Cours
 
 Adresse IP publique du projet applicatif :
-A renseigner apres execution du workflow deploy.yml
+http://13.37.249.246
 
 Adresse IP publique du registry Docker :
-A renseigner apres execution du workflow deploy.yml
+https://13.38.8.234:443

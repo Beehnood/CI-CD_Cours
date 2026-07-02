@@ -3,7 +3,7 @@
 Ce depot deploie deux infrastructures AWS distinctes :
 
 - une instance EC2 dediee au registre Docker prive securise ;
-- une instance EC2 applicative qui lance le formulaire React, l'API Python FastAPI, MySQL et Adminer.
+- une instance EC2 applicative qui lance le formulaire React, l'API Python FastAPI, MySQL et Adminer. Seuls le frontend et l'API sont exposés publiquement.
 
 ## Architecture finale
 
@@ -37,7 +37,7 @@ Des fichiers exemples sans vraies valeurs sont fournis :
 - Frontend : `http://<app_public_ip>`
 - Backend via proxy frontend : `http://<app_public_ip>/api/health`
 - Backend : `http://<app_public_ip>:3000/health`
-- Adminer : `http://<app_public_ip>:8080`
+- Adminer : disponible uniquement dans le réseau Docker interne, non exposé publiquement
 
 ## Application embarquee
 
