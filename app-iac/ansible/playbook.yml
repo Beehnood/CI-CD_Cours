@@ -4,6 +4,7 @@
   become: true
   vars:
     app_root: /opt/registry-app
+    ansible_python_interpreter: /usr/bin/python3
     registry_username: "{{ lookup('env', 'REGISTRY_USERNAME') }}"
     registry_password: "{{ lookup('env', 'REGISTRY_PASSWORD') }}"
     db_name: "{{ lookup('env', 'DB_NAME') }}"
@@ -32,12 +33,58 @@
           {
             "insecure-registries": ["{{ registry_host }}"]
           }
+      notify: Restart Docker
 
-    - name: Enable and restart Docker service
+    - name: Enable and start Docker service
       ansible.builtin.service:
         name: docker
-        state: restarted
+        state: started
         enabled: true
+
+    - name: Create swap file for small EC2 instances
+      ansible.builtin.command:
+        cmd: fallocate -l 2G /swapfile
+        creates: /swapfile
+
+    - name: Secure swap file permissions
+      ansible.builtin.file:
+        path: /swapfile
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Initialize swap file
+      ansible.builtin.command:
+        cmd: mkswap /swapfile
+      register: mkswap_result
+      changed_when: "'setting up swapspace' in mkswap_result.stdout | lower"
+      when: ansible_swaptotal_mb == 0
+
+    - name: Enable swap file
+      ansible.builtin.command:
+        cmd: swapon /swapfile
+      when: ansible_swaptotal_mb == 0
+
+    - name: Persist swap file
+      ansible.builtin.mount:
+        name: none
+        src: /swapfile
+        fstype: swap
+        opts: sw
+        passno: "0"
+        dump: "0"
+        state: present
+
+    - name: Apply Docker configuration changes
+      ansible.builtin.meta: flush_handlers
+
+    - name: Reset SSH connection after Docker service changes
+      ansible.builtin.meta: reset_connection
+
+    - name: Wait for SSH connection after Docker service changes
+      ansible.builtin.wait_for_connection:
+        timeout: 120
+        delay: 5
 
     - name: Create app directory
       ansible.builtin.file:
@@ -67,3 +114,9 @@
         project_src: "{{ app_root }}"
         state: present
         pull: always
+
+  handlers:
+    - name: Restart Docker
+      ansible.builtin.service:
+        name: docker
+        state: restarted

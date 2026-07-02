@@ -105,7 +105,7 @@ jobs:
 
       - name: Generate Ansible inventory
         run: |
-          printf '[app]\napp-server ansible_host=%s ansible_user=%s ansible_ssh_private_key_file=%s/app_key.pem ansible_ssh_common_args="-o StrictHostKeyChecking=no"\n' \
+          printf '[app]\napp-server ansible_host=%s ansible_user=%s ansible_ssh_private_key_file=%s/app_key.pem ansible_python_interpreter=/usr/bin/python3 ansible_ssh_common_args="-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=6"\n' \
             "${APP_HOST}" "${APP_SSH_USER}" "${RUNNER_TEMP}" > app-iac/ansible/inventory.ini
 
       - name: Wait for SSH
