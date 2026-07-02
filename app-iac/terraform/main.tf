@@ -8,18 +8,22 @@ data "aws_ami" "ubuntu" {
   }
 }
 
+resource "random_id" "suffix" {
+  byte_length = 4
+}
+
 resource "tls_private_key" "app" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
 resource "aws_key_pair" "app" {
-  key_name   = "${var.project_name}-key"
+  key_name   = "${var.project_name}-${random_id.suffix.hex}-key"
   public_key = tls_private_key.app.public_key_openssh
 }
 
 resource "aws_security_group" "app" {
-  name        = "${var.project_name}-sg"
+  name        = "${var.project_name}-${random_id.suffix.hex}-sg"
   description = "Application stack access"
 
   ingress {
@@ -54,7 +58,7 @@ resource "aws_security_group" "app" {
   }
 
   tags = {
-    Name = "${var.project_name}-sg"
+    Name = "${var.project_name}-${random_id.suffix.hex}-sg"
   }
 }
 
@@ -66,6 +70,6 @@ resource "aws_instance" "app" {
   associate_public_ip_address = true
 
   tags = {
-    Name = "${var.project_name}-ec2"
+    Name = "${var.project_name}-${random_id.suffix.hex}-ec2"
   }
 }
