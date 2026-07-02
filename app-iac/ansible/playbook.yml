@@ -1,4 +1,3 @@
-cat > app-iac/ansible/playbook.yml <<'EOF'
 ---
 - name: Configure application stack from private registry
   hosts: app
@@ -68,4 +67,3 @@ cat > app-iac/ansible/playbook.yml <<'EOF'
         project_src: "{{ app_root }}"
         state: present
         pull: always
-EOF
